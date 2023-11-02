@@ -1,0 +1,54 @@
+{
+  "name": "web-examples",
+  "private": true,
+  "version": "0.26.0",
+  "description": "Example of using web plugins in browser",
+  "main": "index.js",
+  "scripts": {
+    "docker:start": "cd ./docker && docker-compose down && docker-compose up",
+    "docker:startd": "cd ./docker && docker-compose down && docker-compose up -d",
+    "start": "webpack-dev-server -d --progress --colors --port 8090 --config webpack.config.js --hot --inline --host 0.0.0.0 --content-base examples",
+    "build": "webpack --config webpack.config.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/open-telemetry/opentelemetry-js-contrib.git"
+  },
+  "keywords": [
+    "opentelemetry",
+    "tracing",
+    "web"
+  ],
+  "engines": {
+    "node": ">=8"
+  },
+  "author": "OpenTelemetry Authors",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/open-telemetry/opentelemetry-js-contrib/issues"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.21.8",
+    "babel-loader": "^8.3.0",
+    "ts-loader": "^6.2.2",
+    "webpack": "^4.46.0",
+    "webpack-cli": "^3.3.12",
+    "webpack-dev-server": "^3.11.3",
+    "webpack-merge": "^4.2.2"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.6.0",
+    "@opentelemetry/auto-instrumentations-web": "^0.32.2",
+    "@opentelemetry/context-zone": "^1.17.1",
+    "@opentelemetry/exporter-metrics-otlp-http": "^0.43.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.43.0",
+    "@opentelemetry/instrumentation": "^0.43.0",
+    "@opentelemetry/instrumentation-document-load": "^0.33.2",
+    "@opentelemetry/instrumentation-user-interaction": "^0.33.2",
+    "@opentelemetry/instrumentation-xml-http-request": "^0.43.0",
+    "@opentelemetry/propagator-b3": "^1.17.1",
+    "@opentelemetry/sdk-trace-web": "^1.17.1",
+    "@opentelemetry/semantic-conventions": "^1.17.1"
+  },
+  "homepage": "https://github.com/open-telemetry/opentelemetry-js-contrib#readme"
+}
