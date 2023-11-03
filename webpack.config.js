@@ -1,23 +1,20 @@
 'use strict';
 
 const webpack = require('webpack');
-const webpackMerge = require('webpack-merge');
 const path = require('path');
+const TerserPlugin = require('terser-webpack-plugin');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 const directory = path.resolve(__dirname);
 
-const common = {
-  mode: 'development',
+module.exports =  {
   entry: {
-    'document-load': 'examples/document-load/index.js',
-    meta: 'examples/meta/index.js',
-    'user-interaction': 'examples/user-interaction/index.js',
-    metrics: 'examples/metrics/index.js',
+    'otel-analytics': 'src/index.ts',
   },
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: '[name].js',
-    // sourceMapFilename: '[file].map',
+    library: 'otelAnalytics',
   },
   target: 'web',
   module: {
@@ -45,16 +42,22 @@ const common = {
     ],
     extensions: ['.ts', '.js', '.jsx', '.json'],
   },
-};
-
-module.exports = webpackMerge(common, {
-  devtool: 'eval-source-map',
-  devServer: {
-    contentBase: path.resolve(__dirname),
+  optimization: {
+    minimize: true,
+    minimizer: [
+      new TerserPlugin({
+        terserOptions: {
+          compress: {
+            unused: true,
+            dead_code: true,
+          },
+        },
+      }),
+    ],
   },
   plugins: [
-    new webpack.DefinePlugin({
-      'process.env.NODE_ENV': JSON.stringify('development'),
-    }),
-  ],
-});
+    new HtmlWebpackPlugin({
+      template: 'assets/index.html'
+    })
+  ]
+};
