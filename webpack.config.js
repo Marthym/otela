@@ -4,6 +4,8 @@ const webpack = require('webpack');
 const path = require('path');
 const TerserPlugin = require('terser-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const marked = require("marked");
+const fs = require('fs');
 
 const directory = path.resolve(__dirname);
 
@@ -57,7 +59,9 @@ module.exports =  {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      template: 'assets/index.html'
+      template: 'assets/index.html',
+      title: 'OTEL Analytics',
+      bodyHTML: marked.parse(fs.readFileSync(path.join(__dirname, 'assets/index.md'), 'utf-8')),
     })
   ]
 };

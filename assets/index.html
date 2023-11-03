@@ -3,18 +3,13 @@
 
 <head>
   <meta charset="utf-8">
-  <title>Metrics Example</title>
+  <title><%= htmlWebpackPlugin.options.title %></title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
 
 <body>
-  Example of using metrics with Collector Exporter
-  <br/>
-  <button id="startBtn">Start metrics</button>
-  <button id="stopBtn">Stop metrics</button>
-  <button id="addBtn"> +1 </button>
-  <br/>
+  <%= htmlWebpackPlugin.options.bodyHTML %>
 
   <script type="text/javascript" src="otel-analytics.js"></script>
   <script type="text/javascript">(function(){otelAnalytics.tag()})()</script>
