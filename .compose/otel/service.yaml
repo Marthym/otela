@@ -1,0 +1,22 @@
+---
+
+receivers:
+  webhookevent:
+    endpoint: ':8088'
+
+exporters:
+  prometheus:
+    endpoint: ':9091'
+    send_timestamps: true
+    enable_open_metrics: true
+
+processors:
+  batch:
+
+service:
+  pipelines:
+    logs:
+      receivers: [webhookevent]
+    metrics:
+      exporters: [prometheus]
+      processors: [batch]

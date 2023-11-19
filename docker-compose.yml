@@ -1,0 +1,65 @@
+---
+version: "3.9"
+
+volumes:
+  prometheus_data: {}
+  grafana_data: {}
+
+networks:
+  test:
+
+services:
+
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    depends_on:
+      - opentelemetry
+    networks:
+      - test
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    volumes:
+      - ./.compose/prometheus/:/etc/prometheus/
+      - prometheus_data:/prometheus
+
+  grafana:
+    image: grafana/grafana:9.5.14
+    user: "472"
+    depends_on:
+      - prometheus
+    ports:
+      - '3000:3000'
+    networks:
+      - test
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: false
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./.compose/grafana/provisioning/:/etc/grafana/provisioning/
+
+  opentelemetry:
+    image: otel/opentelemetry-collector-contrib:0.89.0
+    user: '0:0'
+    ports:
+      - '4317:4317'
+      - '4318:4318'
+      - '9091:9091'
+    command:
+      - '--config=/etc/otel/service.yaml'
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+    networks:
+      - test
+    volumes:
+      - './.compose/otel:/etc/otel:ro'
