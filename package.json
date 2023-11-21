@@ -32,13 +32,15 @@
     "@opentelemetry/auto-instrumentations-web": "^0.32.2",
     "@opentelemetry/context-zone": "^1.17.1",
     "@opentelemetry/exporter-metrics-otlp-http": "^0.43.0",
-    "@opentelemetry/exporter-trace-otlp-http": "^0.43.0",
+    "@opentelemetry/exporter-trace-otlp-http": "0.43.0",
     "@opentelemetry/instrumentation": "^0.43.0",
     "@opentelemetry/instrumentation-document-load": "^0.33.2",
     "@opentelemetry/instrumentation-user-interaction": "^0.33.2",
     "@opentelemetry/instrumentation-xml-http-request": "^0.43.0",
     "@opentelemetry/propagator-b3": "^1.17.1",
-    "@opentelemetry/sdk-trace-web": "^1.17.1",
-    "@opentelemetry/semantic-conventions": "^1.17.1"
+    "@opentelemetry/sdk-trace-base": "1.18.1",
+    "@opentelemetry/sdk-trace-web": "1.18.1",
+    "@opentelemetry/semantic-conventions": "^1.17.1",
+    "bowser": "^2.11.0"
   }
 }

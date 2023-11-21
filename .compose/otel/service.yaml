@@ -1,10 +1,21 @@
 ---
 
 receivers:
-  webhookevent:
-    endpoint: ':8088'
+  otlp:
+    protocols:
+      http:
+        endpoint: ':4318'
+        cors:
+          allowed_origins:
+            - http://*
+            - https://*
+          max_age: 7200
 
 exporters:
+  logging:
+    verbosity: detailed
+    sampling_initial: 5
+    sampling_thereafter: 200
   prometheus:
     endpoint: ':9091'
     send_timestamps: true
@@ -15,8 +26,10 @@ processors:
 
 service:
   pipelines:
-    logs:
-      receivers: [webhookevent]
+    traces:
+      receivers: [otlp]
+      exporters: [logging]
     metrics:
+      receivers: [otlp]
       exporters: [prometheus]
       processors: [batch]
