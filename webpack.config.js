@@ -11,12 +11,12 @@ const directory = path.resolve(__dirname);
 
 module.exports = {
     entry: {
-        'otel-analytics': 'src/index.ts',
+        'otela': 'src/index.ts',
     },
     output: {
         path: path.resolve(__dirname, 'dist'),
         filename: '[name].js',
-        library: 'otelAnalytics',
+        library: 'otela',
     },
     target: 'web',
     module: {
@@ -65,7 +65,7 @@ module.exports = {
     plugins: [
         new HtmlWebpackPlugin({
             template: 'assets/index.html',
-            title: 'OTEL Analytics',
+            title: 'Otela',
             bodyHTML: marked.parse(fs.readFileSync(path.join(__dirname, 'assets/index.md'), 'utf-8')),
         })
     ]
