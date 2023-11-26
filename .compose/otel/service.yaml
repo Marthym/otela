@@ -5,6 +5,7 @@ receivers:
     protocols:
       http:
         endpoint: ':4318'
+        include_metadata: true
         cors:
           allowed_origins:
             - http://*
@@ -27,7 +28,6 @@ connectors:
     histogram:
       explicit:
         buckets: [6ms, 10ms, 100ms, 250ms, 500ms]
-
     dimensions:
       - name: title
       - name: domain
@@ -35,34 +35,38 @@ connectors:
       - name: navigator
       - name: os
       - name: platform
+      - name: referrer
 
 processors:
   batch:
-#  attributes/metrics:
-#    actions:
-#      - key: span.kind
-#        action: delete
-#      - key: redacted_span
-#        value: true
-#        action: upsert
-#      - key: copy_key
-#        from_attribute: key_original
-#        action: update
-#      - key: account_id
-#        value: 2245
-#        action: insert
-#      - key: account_password
-#        action: delete
-#      - key: account_email
-#        action: hash
-#      - key: http.status_code
-#        action: convert
-#        converted_type: int
+  filter/otela:
+    spans:
+      include:
+        match_type: strict
+        services:
+          - "blog.ght1pc9kc.fr"
+          - "swr.ght1pc9kc.fr"
+          - "localhost:8090"
+
+  attributes/otela:
+    actions:
+      - key: referrer
+        pattern: ^https?:\/\/(?P<dummy>[^@\n]+@)?(?P<referrer>[^:\/\n?]+)
+        action: extract
+      - key: dummy
+        action: delete
+      - key: referrer
+        value: direct
+        action: insert
+      - key: ip
+        from_context: X-Real-IP
+        action: upsert
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
+      processors: [filter/otela_domain, attributes/otela_referrer]
       exporters: [logging, spanmetrics]
     metrics:
       receivers: [spanmetrics]

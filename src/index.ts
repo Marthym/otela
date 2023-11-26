@@ -4,6 +4,7 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import Bowser from 'bowser';
 import { SpanKind, SpanStatusCode } from '@opentelemetry/api';
 import { Resource } from '@opentelemetry/resources';
+import { Attributs } from './types/Attributs.type';
 
 const provider = new WebTracerProvider({
     resource: new Resource({
@@ -18,20 +19,23 @@ const path = (_ota.p) ? _ota.p : '/v1/traces';
 const exporter = new OTLPTraceExporter({ url: `//${host}${path}` });
 provider.addSpanProcessor(new SimpleSpanProcessor(exporter));
 
-const span = provider.getTracer(document.location.pathname).startSpan('documentLoad', {
-    attributes: {
-        title: document.title,
-        domain: document.location.host,
-        path: document.location.pathname,
-        navigator: browser.browser.name,
-        os: browser.os.name,
-        platform: browser.platform.type,
-        referrer: document.referrer,
-    },
-    kind: SpanKind.CLIENT,
-});
+const attributes: Attributs = {
+    title: document.title,
+    navigator: browser.browser.name ?? 'Unknown',
+    os: browser.os.name ?? 'Unknown',
+    platform: browser.platform.type ?? 'Unknown',
+};
+if (document.referrer && document.referrer.length > 0) {
+    attributes.referrer = document.referrer;
+}
+const span = provider.getTracer(document.location.host)
+    .startSpan(decodeURI(document.location.pathname), {
+        attributes: attributes,
+        kind: SpanKind.CLIENT,
+    });
 
 window.addEventListener('load', async () => {
+    console.log('load');
     span.setStatus({ code: SpanStatusCode.OK });
     span.end();
 });
