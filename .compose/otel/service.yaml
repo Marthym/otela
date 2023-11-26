@@ -1,22 +1,74 @@
 ---
 
 receivers:
-  webhookevent:
-    endpoint: ':8088'
+  otlp:
+    protocols:
+      http:
+        endpoint: ':4318'
+        include_metadata: true
+        cors:
+          allowed_origins:
+            - http://*
+            - https://*
+          max_age: 7200
 
 exporters:
+  logging:
+    verbosity: detailed
+    sampling_initial: 5
+    sampling_thereafter: 200
   prometheus:
     endpoint: ':9091'
     send_timestamps: true
     enable_open_metrics: true
 
+connectors:
+  spanmetrics:
+    namespace: otela
+    histogram:
+      explicit:
+        buckets: [6ms, 10ms, 100ms, 250ms, 500ms]
+    dimensions:
+      - name: title
+      - name: domain
+      - name: path
+      - name: navigator
+      - name: os
+      - name: platform
+      - name: referrer
+
 processors:
   batch:
+  filter/otela:
+    spans:
+      include:
+        match_type: strict
+        services:
+          - "blog.ght1pc9kc.fr"
+          - "swr.ght1pc9kc.fr"
+          - "localhost:8090"
+
+  attributes/otela:
+    actions:
+      - key: referrer
+        pattern: ^https?:\/\/(?P<dummy>[^@\n]+@)?(?P<referrer>[^:\/\n?]+)
+        action: extract
+      - key: dummy
+        action: delete
+      - key: referrer
+        value: direct
+        action: insert
+      - key: ip
+        from_context: X-Real-IP
+        action: upsert
 
 service:
   pipelines:
-    logs:
-      receivers: [webhookevent]
+    traces:
+      receivers: [otlp]
+      processors: [filter/otela_domain, attributes/otela_referrer]
+      exporters: [logging, spanmetrics]
     metrics:
+      receivers: [spanmetrics]
       exporters: [prometheus]
       processors: [batch]

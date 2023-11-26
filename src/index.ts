@@ -1,53 +1,42 @@
-import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
-import { AggregationTemporality, MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
+import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
+import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import Bowser from 'bowser';
+import { SpanKind, SpanStatusCode } from '@opentelemetry/api';
+import { Resource } from '@opentelemetry/resources';
+import { Attributs } from './types/Attributs.type';
 
-const EXPORT_INTERVAL_MILLIS = 10_000;
+const provider = new WebTracerProvider({
+    resource: new Resource({
+        'service.name': document.location.host,
+    }),
+});
 
-export function tag(target?: string): void {
-    console.debug('Start page tagging...');
-    window.addEventListener('load', async () => {
-        console.debug('STARTING ANALYTICS');
+const browser = Bowser.parse(window.navigator.userAgent);
+const _ota = window._ota = window._ota || {};
+const host = (_ota.t) ? _ota.t : document.location.host;
+const path = (_ota.p) ? _ota.p : '/v1/traces';
+const exporter = new OTLPTraceExporter({ url: `//${host}${path}` });
+provider.addSpanProcessor(new SimpleSpanProcessor(exporter));
 
-        const meterProvider = new MeterProvider();
-        const exporter = (target !== undefined) ? new OTLPMetricExporter({ temporalityPreference: AggregationTemporality.DELTA }) : new OTLPMetricExporter({
-            url: target,
-            temporalityPreference: AggregationTemporality.DELTA,
-        });
-        meterProvider.addMetricReader(new PeriodicExportingMetricReader({
-            exporter: exporter,
-            exportIntervalMillis: 3_600_000,
-        }));
-
-        const meter = meterProvider.getMeter('otel-analytics-collector');
-        const sessionDurationCounter = meter.createCounter('oa.session.duration.second', {
-            description: 'Session duration in seconds',
-        });
-
-        console.debug(document.location);
-        const attributes = {
-            domain: document.location.host,
-            path: document.location.pathname,
-        };
-
-        const interval = setInterval(() => {
-            sessionDurationCounter.add(EXPORT_INTERVAL_MILLIS / 1000, attributes);
-            meterProvider.forceFlush();
-        }, EXPORT_INTERVAL_MILLIS);
-
-        window.addEventListener('beforeunload', async (event) => {
-            event.preventDefault();
-            console.debug('tagSessionDuration terminate.');
-            clearInterval(interval);
-            await meterProvider.forceFlush()
-                .then(() => meterProvider.shutdown());
-            event.returnValue = '';
-        });
-
-        const requestCounter = meter.createCounter('oa.page.visit', {
-            description: 'Web site page visit',
-        });
-
-        requestCounter.add(1, attributes);
-        await meterProvider.forceFlush();
-    });
+const attributes: Attributs = {
+    title: document.title,
+    navigator: browser.browser.name ?? 'Unknown',
+    os: browser.os.name ?? 'Unknown',
+    platform: browser.platform.type ?? 'Unknown',
+};
+if (document.referrer && document.referrer.length > 0) {
+    attributes.referrer = document.referrer;
 }
+const span = provider.getTracer(document.location.host)
+    .startSpan(decodeURI(document.location.pathname), {
+        attributes: attributes,
+        kind: SpanKind.CLIENT,
+    });
+
+window.addEventListener('load', async () => {
+    console.log('load');
+    span.setStatus({ code: SpanStatusCode.OK });
+    span.end();
+});
+
