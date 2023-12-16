@@ -1,31 +1,26 @@
-# Overview
+# Otela
 
-This example shows how to use [@opentelemetry/sdk-trace-web][] with different instrumentations from contrib repo in a browser.
+OpenTelemetry for Web Analytics.
+
+Otela provides a means of measuring the audience of a static website via a Grafana stack, thanks to the use of OpenTelemetry.
 
 ## Installation
 
-```sh
-# from this directory
-npm install
+```html
+<!-- Otela -->
+<script>
+    var _ota=window._ota=window._ota||{};_ota.t="your.opentelemetry.server";
+    (function(){
+        var t=document,e=t.createElement("script"),a=t.getElementsByTagName("script")[0];
+        e.async=!0;e.src="/otela.js";a.parentNode.insertBefore(e,a)
+    })();
+</script>
+<!-- End Otela Code -->
 ```
 
-## Run the Application
+## Build
 
-```sh
-# from this directory
-npm start
+```shell
+npm ci
+npm run build
 ```
-
-By default, the application will run on port `8090`.
-
-## More information
-
-- [OpenTelemetry](https://opentelemetry.io)
-- [Web tracing][opentelemetry-sdk-trace-web]
-
-## LICENSE
-
-Apache License 2.0
-
-[@opentelemetry/sdk-trace-web]: https://www.npmjs.com/package/@opentelemetry/sdk-trace-web
-[opentelemetry-sdk-trace-web]: https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/opentelemetry-sdk-trace-web

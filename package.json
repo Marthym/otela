@@ -1,7 +1,7 @@
 {
   "name": "otela",
   "version": "1.0.0",
-  "description": "Analytics client for OpenTelemetry webhook reciever",
+  "description": "Analytics client for OpenTelemetry webhook receiver",
   "main": "otela.js",
   "scripts": {
     "start": "webpack-dev-server -d --progress --colors --port 8090 --config webpack.config.js --hot --inline --host 0.0.0.0 --content-base examples",
