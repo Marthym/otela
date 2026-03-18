@@ -12,7 +12,7 @@ services:
   prometheus:
     image: prom/prometheus:v2.48.0
     depends_on:
-      - opentelemetry
+      - vector
     networks:
       - test
     command:
@@ -58,7 +58,27 @@ services:
     volumes:
       - ./.compose/nginx/conf.d:/etc/nginx/conf.d:ro
 
-  opentelemetry:
+  vector:
+    image: dhi.io/vector:0.54.0-debian13
+    command: ['--config', '/etc/vector/vector.yaml']
+    user: '0:0'
+    read_only: true
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+    tmpfs:
+      - /var/lib/vector:exec
+    volumes:
+      - ./.compose/vector/vector.yaml:/etc/vector/vector.yaml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /:/rootfs:ro,rslave
+      - ./.compose/vector/GeoLite2-City.mmdb:/var/lib/geoip/GeoLite2-City.mmdb:ro
+    networks:
+      - test
+
+  .opentelemetry:
     image: otel/opentelemetry-collector-contrib:0.89.0
     user: '0:0'
     ports:

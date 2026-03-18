@@ -1,0 +1,248 @@
+data_dir: /var/lib/vector
+
+enrichment_tables:
+  otela_geoip:
+    type: geoip
+    path: /var/lib/geoip/GeoLite2-City.mmdb
+
+sources:
+  docker_file_logs:
+    type: file
+    include:
+      - /var/lib/docker/containers/*/*.log
+    exclude:
+      - /var/lib/docker/containers/32a*
+    read_from: end
+
+  host_metrics:
+    type: host_metrics
+    scrape_interval_secs: 30
+
+  baywatch_prometheus:
+    type: prometheus_scrape
+    endpoints:
+      - http://baywatch:8081/actuator/prometheus
+    scrape_interval_secs: 5
+    auth:
+      strategy: basic
+      user: "{{ _otel_baywatch_user }}"
+      password: "{{ _otel_baywatch_password }}"
+
+  nginx_docker_logs:
+    type: docker_logs
+    include_images:
+      - "nginx:*"
+
+transforms:
+  docker_json:
+    type: remap
+    inputs:
+      - docker_file_logs
+    source: |
+      parsed, err = parse_json(.message)
+      if err != null {
+        abort
+      }
+      . = parsed
+
+  docker_logs_with_tag:
+    type: filter
+    inputs:
+      - docker_json
+    condition: .attrs.tag != null
+
+  docker_logs_processed:
+    type: remap
+    inputs:
+      - docker_logs_with_tag
+    source: |
+      tags, tags_err = parse_key_value(string!(.attrs.tag), key_value_delimiter: "=", field_delimiter: ",")
+      if tags_err != null {
+        abort
+      }
+
+      .container_id = tags.container_id
+      .container_name = tags.container_name
+      .container_image = tags.container_image
+      .application = string(.attrs.application) ?? ""
+
+      .message = del(.log)
+
+      if .application == "Baywatch" {
+        app, app_err = parse_json(.message)
+        if app_err == null {
+          .timestamp = app.timestamp
+          .level = downcase(string(app.level) ?? "")
+          .message = string(app.message) ?? .message
+        }
+      } else if .application == "imgproxy" {
+        app, app_err = parse_json(.message)
+        if app_err == null {
+          .timestamp = app.time
+          .level = downcase(string(app.level) ?? "")
+          if app.error != null {
+            .message = string(app.error) ?? .message
+          } else if app.msg != null {
+            .message = string(app.msg) ?? .message
+          }
+          if app.request_id != null {
+            .thread = app.request_id
+          }
+        }
+      }
+
+      del(.attrs)
+      del(.stream)
+      del(.time)
+
+  nginx_otela_lines:
+    type: filter
+    inputs:
+      - nginx_docker_logs
+    condition: contains(string!(.message), " /v1/traces")
+
+  nginx_otela_parsed:
+    type: remap
+    inputs:
+      - nginx_otela_lines
+    source: |
+      parsed, err = parse_nginx_log(.message, "combined")
+      if err != null {
+        abort
+      }
+      . = parsed
+
+      req = string(.request) ?? ""
+      req_parts = split(req, " ")
+      if length(req_parts) < 2 {
+        abort
+      }
+      .path = string!(req_parts[1])
+
+      if !starts_with(.path, "/v1/traces") {
+        abort
+      }
+
+      path_parts = split(.path, "/v1/traces/")
+      if length(path_parts) < 2 {
+        abort
+      }
+      payload_url = path_parts[1]
+      payload_b64 = split!(payload_url, "?")[0]
+      payload_json_raw, payload_err = decode_base64(payload_b64)
+      if payload_err != null {
+        abort
+      }
+
+      payload_json, parse_payload_err = parse_json(string(payload_json_raw))
+      if parse_payload_err != null {
+        abort
+      }
+
+      .job = "otela"
+      .ip = string(.ip) ?? ""
+      ua_raw = string(.agent) ?? ""
+      .navigator = ""
+      .os = ""
+      .platform = "desktop"
+
+      ua = parse_user_agent(ua_raw)
+      .navigator = string(ua.browser.family) ?? ""
+      .os = string(ua.os.family) ?? ""
+      ua_device = downcase(string(ua.device.category) ?? "")
+      if ua_device == "mobile" || ua_device == "tablet" || ua_device == "wearable" || ua_device == "smarttv" {
+        .platform = "mobile"
+      } else if ua_device == "pc" || ua_device == "desktop" {
+        .platform = "desktop"
+      }
+
+      if .navigator == "" {
+        .navigator = ua_raw
+      }
+
+      .referrer = string(payload_json.referrer) ?? "direct"
+      if .referrer == "" {
+        .referrer = "direct"
+      }
+      if starts_with(.referrer, "http://") || starts_with(.referrer, "https://") {
+        parsed_referrer, parsed_referrer_err = parse_url(.referrer)
+        if parsed_referrer_err == null && parsed_referrer.host != null {
+          .referrer = string(parsed_referrer.host) ?? .referrer
+        }
+      }
+
+      .title = string(payload_json.title) ?? "-"
+
+      .service_name = ""
+      http_referer = string(.referrer)
+      if http_referer != "-" && http_referer != "" {
+        parsed_service, parsed_service_err = parse_url(http_referer)
+        if parsed_service_err == null && parsed_service.host != null {
+          .service_name = string(parsed_service.host) ?? ""
+        }
+      }
+      if .service_name == "" && .referrer != "direct" {
+        .service_name = .referrer
+      }
+      if .service_name == "" {
+        abort
+      }
+
+      .metric_increment = 1
+
+  nginx_otela_geoip:
+    type: remap
+    inputs:
+      - nginx_otela_parsed
+    source: |
+      geo = get_enrichment_table_record!("otela_geoip", { "ip": .ip })
+      if geo != null {
+        .latitude = to_string(geo.latitude) ?? ""
+        .longitude = to_string(geo.longitude) ?? ""
+      } else {
+        .latitude = ""
+        .longitude = ""
+      }
+
+  nginx_otela_calls_total:
+    type: log_to_metric
+    inputs:
+      - nginx_otela_geoip
+    metrics:
+      - type: counter
+        name: otela_calls_total
+        field: metric_increment
+        increment_by_value: true
+        tags:
+          ip: "{{ ip }}"
+          job: "{{ job }}"
+          latitude: "{{ latitude }}"
+          longitude: "{{ longitude }}"
+          navigator: "{{ navigator }}"
+          os: "{{ os }}"
+          platform: "{{ platform }}"
+          referrer: "{{ referrer }}"
+          service_name: "{{ service_name }}"
+          title: "{{ title }}"
+
+sinks:
+  loki:
+    type: loki
+    inputs:
+      - docker_logs_processed
+    endpoint: http://loki:3100
+    encoding:
+      codec: json
+    labels:
+      application: "{{ application }}"
+      container_id: "{{ container_id }}"
+      container_name: "{{ container_name }}"
+      container_image: "{{ container_image }}"
+
+  prometheus:
+    type: prometheus_exporter
+    inputs:
+      - host_metrics
+      - baywatch_prometheus
+      - nginx_otela_calls_total
+    address: 0.0.0.0:9091
