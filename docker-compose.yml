@@ -1,5 +1,4 @@
 ---
-version: "3.9"
 
 volumes:
   prometheus_data: {}
@@ -45,6 +44,19 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./.compose/grafana/provisioning/:/etc/grafana/provisioning/
+
+  nginx:
+    image: dhi.io/nginx:1.29.6-debian13
+    read_only: true
+    ports:
+      - '8083:80'
+    networks:
+      - test
+    tmpfs:
+      - /run/nginx:exec,mode=777,uid=1000,gid=1000
+      - /var/cache/nginx:exec,mode=777,uid=1000,gid=1000
+    volumes:
+      - ./.compose/nginx/conf.d:/etc/nginx/conf.d:ro
 
   opentelemetry:
     image: otel/opentelemetry-collector-contrib:0.89.0
