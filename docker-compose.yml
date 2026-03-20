@@ -70,7 +70,7 @@ services:
         labels: application
         tag: id={{.ID}} name={{.Name}} image={{.ImageName}}
     ports:
-      - '8083:80'
+      - '8080:80'
     networks:
       - test
     tmpfs:

@@ -1,7 +1,7 @@
 ### GET request to example server
-GET http://127.0.0.1:8083/v1/traces/
-    ewogICJyZWZlcmVjZSI6ICJodHRwczovL2dpdGh1Yi5jb20vcHJvbWV0aGV1cy9wcm9tZXRoZXVzL2lzc3Vlcy8yMjIyI2lzc3VlY29tbWVudC00NzczNzc3MiIsCiAgInRpdGxlIjogIlByb21ldGhldXMgY29uZmlndXJhdGlvbiBmb3IgbW9uaXRvcmluZyBEb2NrZXIgY29udGFpbmVycyIKfQ==
+POST http://127.0.0.1:8080/otela/
+    ewogICJyZWZlcmVyIjogImh0dHBzOi8vZ2l0aHViLmNvbS9wcm9tZXRoZXVzL3Byb21ldGhldXMvaXNzdWVzLzIyMjIjaXNzdWVjb21tZW50LTQ3NzM3NzcyIiwKICAidGl0bGUiOiAiUHJvbWV0aGV1cyBjb25maWd1cmF0aW9uIGZvciBtb25pdG9yaW5nIERvY2tlciBjb250YWluZXJzIgp9
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:148.0) Gecko/20100101 Firefox/148.0
 Referer: https://blog.ght1pc9kc.fr/2025/la-claque-du-d%C3%A9veloppeur/
-X-Forwarded-For: 51.255.205.136
+X-Forwarded-For: 51.255.205.137
 ###
