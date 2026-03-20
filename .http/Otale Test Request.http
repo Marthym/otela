@@ -1,0 +1,7 @@
+### GET request to example server
+POST http://127.0.0.1:8080/otela/
+    ewogICJyZWZlcmVyIjogImh0dHBzOi8vZ2l0aHViLmNvbS9wcm9tZXRoZXVzL3Byb21ldGhldXMvaXNzdWVzLzIyMjIjaXNzdWVjb21tZW50LTQ3NzM3NzcyIiwKICAidGl0bGUiOiAiUHJvbWV0aGV1cyBjb25maWd1cmF0aW9uIGZvciBtb25pdG9yaW5nIERvY2tlciBjb250YWluZXJzIgp9
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:148.0) Gecko/20100101 Firefox/148.0
+Referer: https://blog.ght1pc9kc.fr/2025/la-claque-du-d%C3%A9veloppeur/
+X-Forwarded-For: 51.255.205.137
+###
