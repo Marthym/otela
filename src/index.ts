@@ -15,11 +15,13 @@ window.addEventListener('load', async () => {
     };
     if (document.referrer && document.referrer.length > 0) {
         attributes.referer = document.referrer;
+    } else {
+        attributes.referer = 'direct';
     }
 
     const _ota = window._ota = window._ota || {};
     const host = (_ota.t) ? _ota.t : document.location.host;
     const path = (_ota.p) ? _ota.p : `/otela/${toBase64Utf8(JSON.stringify(attributes))}`;
-    navigator.sendBeacon(`https://${host}${path}`);
+    navigator.sendBeacon(`//${host}${path}`);
 });
 
