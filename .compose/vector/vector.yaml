@@ -6,67 +6,34 @@ enrichment_tables:
     path: /var/lib/geoip/GeoLite2-City.mmdb
 
 sources:
-  docker_file_logs:
-    type: file
-    include:
-      - /var/lib/docker/containers/*/*.log
-    exclude:
-      - /var/lib/docker/containers/32a*
-    read_from: end
-
   host_metrics:
     type: host_metrics
     scrape_interval_secs: 30
 
-  baywatch_prometheus:
-    type: prometheus_scrape
-    endpoints:
-      - http://baywatch:8081/actuator/prometheus
-    scrape_interval_secs: 5
-    auth:
-      strategy: basic
-      user: "{{ _otel_baywatch_user }}"
-      password: "{{ _otel_baywatch_password }}"
+#  baywatch_prometheus:
+#    type: prometheus_scrape
+#    endpoints:
+#      - http://baywatch:8081/actuator/prometheus
+#    scrape_interval_secs: 5
+#    auth:
+#      strategy: basic
+#      user: "{{ _otel_baywatch_user }}"
+#      password: "{{ _otel_baywatch_password }}"
 
-  nginx_docker_logs:
+  docker_logs:
     type: docker_logs
-    include_images:
-      - "nginx:*"
+    include_containers:
+      - otela-nginx
 
 transforms:
-  docker_json:
-    type: remap
-    inputs:
-      - docker_file_logs
-    source: |
-      parsed, err = parse_json(.message)
-      if err != null {
-        abort
-      }
-      . = parsed
-
-  docker_logs_with_tag:
-    type: filter
-    inputs:
-      - docker_json
-    condition: .attrs.tag != null
 
   docker_logs_processed:
     type: remap
     inputs:
-      - docker_logs_with_tag
+      - docker_logs
     source: |
-      tags, tags_err = parse_key_value(string!(.attrs.tag), key_value_delimiter: "=", field_delimiter: ",")
-      if tags_err != null {
-        abort
-      }
-
-      .container_id = tags.container_id
-      .container_name = tags.container_name
-      .container_image = tags.container_image
-      .application = string(.attrs.application) ?? ""
-
-      .message = del(.log)
+      .container_image = del(.image)
+      .application = string(.label.application) ?? ""
 
       if .application == "Baywatch" {
         app, app_err = parse_json(.message)
@@ -94,11 +61,12 @@ transforms:
       del(.attrs)
       del(.stream)
       del(.time)
+      del(.label)
 
   nginx_otela_lines:
     type: filter
     inputs:
-      - nginx_docker_logs
+      - docker_logs_processed
     condition: contains(string!(.message), " /v1/traces")
 
   nginx_otela_parsed:
@@ -106,30 +74,29 @@ transforms:
     inputs:
       - nginx_otela_lines
     source: |
-      parsed, err = parse_nginx_log(.message, "combined")
+      parsed, err = parse_nginx_log(.message, "main")
       if err != null {
         abort
       }
       . = parsed
-
+      
       req = string(.request) ?? ""
       req_parts = split(req, " ")
       if length(req_parts) < 2 {
         abort
       }
+      
       .path = string!(req_parts[1])
-
       if !starts_with(.path, "/v1/traces") {
         abort
       }
 
-      path_parts = split(.path, "/v1/traces/")
+      path_parts = split_path(.path)
       if length(path_parts) < 2 {
         abort
       }
-      payload_url = path_parts[1]
-      payload_b64 = split!(payload_url, "?")[0]
-      payload_json_raw, payload_err = decode_base64(payload_b64)
+      payload_url = path_parts[3]
+      payload_json_raw, payload_err = decode_base64(payload_url)
       if payload_err != null {
         abort
       }
@@ -140,8 +107,8 @@ transforms:
       }
 
       .job = "otela"
-      .ip = string(.ip) ?? ""
-      ua_raw = string(.agent) ?? ""
+      .ip = string(.http_x_forwarded_for) ?? string(.remote_addr) ?? "127.0.0.1"
+      ua_raw = string(.http_user_agent) ?? ""
       .navigator = ""
       .os = ""
       .platform = "desktop"
@@ -160,35 +127,41 @@ transforms:
         .navigator = ua_raw
       }
 
-      .referrer = string(payload_json.referrer) ?? "direct"
-      if .referrer == "" {
-        .referrer = "direct"
-      }
-      if starts_with(.referrer, "http://") || starts_with(.referrer, "https://") {
-        parsed_referrer, parsed_referrer_err = parse_url(.referrer)
-        if parsed_referrer_err == null && parsed_referrer.host != null {
-          .referrer = string(parsed_referrer.host) ?? .referrer
-        }
-      }
-
-      .title = string(payload_json.title) ?? "-"
-
       .service_name = ""
-      http_referer = string(.referrer)
+      http_referer = string!(.http_referer)
       if http_referer != "-" && http_referer != "" {
         parsed_service, parsed_service_err = parse_url(http_referer)
         if parsed_service_err == null && parsed_service.host != null {
           .service_name = string(parsed_service.host) ?? ""
         }
       }
-      if .service_name == "" && .referrer != "direct" {
-        .service_name = .referrer
+      if .service_name == "" && .referer != "direct" {
+        .service_name = .referer
       }
       if .service_name == "" {
         abort
       }
+      
+      .referer = string(payload_json.referer) ?? "direct"
+      if .referer == "" {
+        .referer = "direct"
+      }
+      if starts_with(.referer, "http://") || starts_with(.referer, "https://") {
+        parsed_referer, parsed_referer_err = parse_url(.referer)
+        if parsed_referer_err == null && parsed_referer.host != null {
+          .referer = string(parsed_referer.host) ?? .referer
+        }
+      }
 
+      .title = string(payload_json.title) ?? "-"
       .metric_increment = 1
+      del(.body_bytes_size)
+      del(.http_referer)
+      del(.http_user_agent)
+      del(.http_x_forwarded_for)
+      del(.remote_addr)
+      del(.request)
+      del(.path)
 
   nginx_otela_geoip:
     type: remap
@@ -221,7 +194,7 @@ transforms:
           navigator: "{{ navigator }}"
           os: "{{ os }}"
           platform: "{{ platform }}"
-          referrer: "{{ referrer }}"
+          referrer: "{{ referer }}"
           service_name: "{{ service_name }}"
           title: "{{ title }}"
 
@@ -243,6 +216,6 @@ sinks:
     type: prometheus_exporter
     inputs:
       - host_metrics
-      - baywatch_prometheus
+#      - baywatch_prometheus
       - nginx_otela_calls_total
     address: 0.0.0.0:9091

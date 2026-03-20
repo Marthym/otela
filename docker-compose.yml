@@ -11,6 +11,10 @@ services:
 
   prometheus:
     image: prom/prometheus:v2.48.0
+    logging:
+      driver: local
+      options:
+        max-size: 10m
     depends_on:
       - vector
     networks:
@@ -23,6 +27,16 @@ services:
     volumes:
       - ./.compose/prometheus/:/etc/prometheus/
       - prometheus_data:/prometheus
+
+  loki:
+    image: grafana/loki:3.6.5
+    command: -config.file=/etc/loki/local-config.yaml
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+    networks:
+      - test
 
   grafana:
     image: grafana/grafana:9.5.14
@@ -48,6 +62,13 @@ services:
   nginx:
     image: dhi.io/nginx:1.29.6-debian13
     read_only: true
+    labels:
+      application: Baywatch
+    logging:
+      driver: json-file
+      options:
+        labels: application
+        tag: id={{.ID}} name={{.Name}} image={{.ImageName}}
     ports:
       - '8083:80'
     networks:
@@ -59,10 +80,12 @@ services:
       - ./.compose/nginx/conf.d:/etc/nginx/conf.d:ro
 
   vector:
-    image: dhi.io/vector:0.54.0-debian13
+    image: dhi.io/vector:0.54.0-debian13-dev
     command: ['--config', '/etc/vector/vector.yaml']
     user: '0:0'
     read_only: true
+    depends_on:
+      - loki
     logging:
       driver: local
       options:
@@ -71,27 +94,27 @@ services:
       - /var/lib/vector:exec
     volumes:
       - ./.compose/vector/vector.yaml:/etc/vector/vector.yaml:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /home/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /:/rootfs:ro,rslave
       - ./.compose/vector/GeoLite2-City.mmdb:/var/lib/geoip/GeoLite2-City.mmdb:ro
     networks:
       - test
 
-  .opentelemetry:
-    image: otel/opentelemetry-collector-contrib:0.89.0
-    user: '0:0'
-    ports:
-      - '4317:4317'
-      - '4318:4318'
-      - '9091:9091'
-    command:
-      - '--config=/etc/otel/service.yaml'
-    logging:
-      driver: local
-      options:
-        max-size: 10m
-    networks:
-      - test
-    volumes:
-      - './.compose/otel:/etc/otel:ro'
+#  opentelemetry:
+#    image: otel/opentelemetry-collector-contrib:0.89.0
+#    user: '0:0'
+#    ports:
+#      - '4317:4317'
+#      - '4318:4318'
+#      - '9091:9091'
+#    command:
+#      - '--config=/etc/otel/service.yaml'
+#    logging:
+#      driver: local
+#      options:
+#        max-size: 10m
+#    networks:
+#      - test
+#    volumes:
+#      - './.compose/otel:/etc/otel:ro'
